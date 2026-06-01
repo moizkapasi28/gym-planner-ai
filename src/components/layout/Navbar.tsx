@@ -18,13 +18,15 @@ export default function Navbar() {
         <nav>
           {user ? (
             <>
-              <Link
-                to="/profile"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Button variant="ghost">My Plan</Button>
-              </Link>
-              <UserButton className="bg-accent" />
+              <div className="gap-6">
+                <Link
+                  to="/profile"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Button variant="ghost">My Plan</Button>
+                </Link>
+                <UserButton className="bg-accent" />
+              </div>
             </>
           ) : (
             <>
