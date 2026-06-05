@@ -1,11 +1,9 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import dotenv from "dotenv";
 import { planRouter } from "./routes/plan";
 import { profileRouter } from "./routes/profile";
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT;
@@ -17,6 +15,14 @@ app.use(express.json());
 app.use("/api/profile", profileRouter);
 app.use("/api/plan", planRouter);
 
-app.listen(() => {
+const url = new URL(process.env.DATABASE_URL!);
+
+console.log({
+  username: url.username,
+  password: url.password,
+  hostname: url.hostname,
+});
+
+app.listen(PORT, () => {
   console.log(`Server running on PORT : ${PORT}`);
 });

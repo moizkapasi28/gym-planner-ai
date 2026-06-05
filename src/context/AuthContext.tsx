@@ -1,10 +1,14 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import type { User } from "../types";
+import type { User, UserProfile } from "../types";
 import { authClient } from "../lib/auth";
+import { api } from "../lib/api";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  saveProfile: (
+    profile: Omit<UserProfile, "userId" | "createdAt" | "updatedAt">,
+  ) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -38,8 +42,18 @@ export default function AuthProvider({
     fetchUser();
   }, []);
 
+  async function saveProfile(
+    profileData: Omit<UserProfile, "userId" | "createdAt" | "updatedAt">,
+  ) {
+    if (!neonUser) {
+      throw new Error("User must be authenticated to save profile");
+    }
+
+    await api.saveProfile(neonUser.id, profileData);
+  }
+
   return (
-    <AuthContext.Provider value={{ user: neonUser, loading }}>
+    <AuthContext.Provider value={{ user: neonUser, loading, saveProfile }}>
       {children}
     </AuthContext.Provider>
   );
