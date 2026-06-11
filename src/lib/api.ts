@@ -21,13 +21,12 @@ async function post(path: string, body: object) {
 }
 
 async function get(path: string) {
-  const response = await fetch(path, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-  return response.json();
+  const res = await fetch(`${BASE_URL}/api/${path}`);
+  if (!res.ok)
+    throw new Error(
+      (await res.json().catch(() => ({}))).error || "Request failed",
+    );
+  return res.json();
 }
 
 export const api = {
@@ -36,5 +35,13 @@ export const api = {
     profile: Omit<UserProfile, "userId" | "createdAt" | "updatedAt">,
   ) => {
     return post("profile", { userId, ...profile });
+  },
+
+  generatePlan: (userId: string) => {
+    return post("plan/generate", { userId });
+  },
+
+  getCurrentPlan: (userId: string) => {
+    return get(`plan/current?userId=${userId}`);
   },
 };

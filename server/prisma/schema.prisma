@@ -25,5 +25,16 @@ model user_profile {
   injuries String?
   created_at DateTime @default(now()) @db.Timestamptz(6)
   updated_at DateTime @default(now()) @db.Timestamptz(6)
-
 }
+
+model training_plans {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId String @db.Uuid
+  plan_json Json
+  plan_text String
+  version Int @default(1)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  @@index([userId], map: "idx_training_plan_user_id")
+}
+

@@ -47,5 +47,5 @@ export interface TrainingPlan {
   weeklySchedule: DaySchedule[];
   progression: string;
   version: string;
-  created_at: string;
+  createdAt: string;
 }

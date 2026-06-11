@@ -1,46 +1,98 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import type { User, UserProfile } from "../types";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type { TrainingPlan, User, UserProfile } from "../types";
 import { authClient } from "../lib/auth";
 import { api } from "../lib/api";
 
 interface AuthContextType {
   user: User | null;
-  loading: boolean;
+  plan: TrainingPlan | null;
+  isLoading: boolean;
+  isPlanLoading: boolean;
+  isGenerating: boolean;
   saveProfile: (
     profile: Omit<UserProfile, "userId" | "createdAt" | "updatedAt">,
   ) => Promise<void>;
+  generatePlan: () => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export default function AuthProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [neonUser, setNeonUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function AuthProvider({ children }: { children: ReactNode }) {
+  const [neonUser, setNeonUser] = useState<any>(null);
+  const [plan, setPlan] = useState<TrainingPlan | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPlanLoading, setIsPlanLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const isRefreshingRef = useRef(false);
 
   useEffect(() => {
-    async function fetchUser() {
+    async function loadUser() {
       try {
-        setLoading(true);
-        const response = await authClient.getSession();
-        if (!response || !response.data || !response.data.session) {
-          setNeonUser(null);
-          return;
+        const result = await authClient.getSession();
+        if (result && result.data?.user) {
+          setNeonUser(result.data.user);
         } else {
-          setNeonUser(response.data.user as unknown as User);
+          setNeonUser(null);
         }
-      } catch (error) {
+      } catch (err) {
         setNeonUser(null);
-        console.error("Error fetching user:", error);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     }
-    fetchUser();
+
+    loadUser();
   }, []);
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (neonUser?.id) {
+        refreshData();
+      } else {
+        setPlan(null);
+      }
+      setIsLoading(false);
+    }
+  }, [neonUser?.id, isLoading]);
+
+  // refreshData memoize
+  const refreshData = useCallback(async () => {
+    if (!neonUser || isRefreshingRef.current) return;
+
+    isRefreshingRef.current = true;
+    setIsPlanLoading(true);
+
+    try {
+      // Fetch Plan
+      const planData = await api.getCurrentPlan(neonUser.id).catch(() => null);
+
+      if (planData) {
+        setPlan({
+          id: planData.id,
+          userId: planData.userId,
+          overview: planData.plan_json.overview,
+          weeklySchedule: planData.plan_json.weeklySchedule,
+          progression: planData.plan_json.progression,
+          version: planData.version,
+          created_at: planData.createdAt,
+        });
+      }
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+    } finally {
+      setIsPlanLoading(false);
+      isRefreshingRef.current = false;
+    }
+  }, [neonUser?.id]);
 
   async function saveProfile(
     profileData: Omit<UserProfile, "userId" | "createdAt" | "updatedAt">,
@@ -50,10 +102,38 @@ export default function AuthProvider({
     }
 
     await api.saveProfile(neonUser.id, profileData);
+    await refreshData();
+  }
+
+  async function generatePlan() {
+    if (!neonUser) {
+      throw new Error("User must be authenticated to generate plan");
+    }
+
+    try {
+      setIsGenerating(true);
+      await api.generatePlan(neonUser.id);
+      await refreshData();
+    } catch (error) {
+      console.error("Error generating plan:", error);
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   return (
-    <AuthContext.Provider value={{ user: neonUser, loading, saveProfile }}>
+    <AuthContext.Provider
+      value={{
+        user: neonUser,
+        plan: plan,
+        isLoading: isLoading,
+        isPlanLoading: isPlanLoading,
+        isGenerating: isGenerating,
+        saveProfile,
+        generatePlan,
+        refreshData,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -61,8 +141,8 @@ export default function AuthProvider({
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within a AuthProvider");
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

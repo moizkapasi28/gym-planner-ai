@@ -1,6 +1,7 @@
 import { RedirectToSignIn, SignedIn } from "@neondatabase/neon-js/auth/react";
-import { ArrowRight, Loader, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Select } from "../components/ui/Select";
@@ -54,6 +55,7 @@ const splitOptions = [
 
 export default function OnBoarding() {
   const auth = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState({
     goal: "bulk",
     experience: "beginner",
@@ -63,13 +65,14 @@ export default function OnBoarding() {
     split: "fullbody",
     injuries: "",
   });
-  const [isGenerating, setIsGenerating] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
 
   if (!auth || !auth.user) return <RedirectToSignIn />;
 
   const user = auth.user;
   const saveProfile = auth.saveProfile;
+  const generatePlan = auth.generatePlan;
 
   const handleUpdateForm = (field: string, value: string) => {
     setData((prev) => ({ ...prev, [field]: value }));
@@ -90,6 +93,8 @@ export default function OnBoarding() {
     try {
       await saveProfile(profile);
       setIsGenerating(true);
+      await generatePlan();
+      navigate("/profile");
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Failed to save profile",
